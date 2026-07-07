@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* Markdown 渲染区域的基础排版 */
+.markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 0.6em 0 0.4em; }
+.markdown-body h2 { font-size: 1.25rem; font-weight: 700; margin: 0.6em 0 0.4em; }
+.markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin: 0.5em 0 0.3em; }
+.markdown-body p { margin: 0.4em 0; line-height: 1.7; }
+.markdown-body ul, .markdown-body ol { margin: 0.4em 0; padding-left: 1.5em; }
+.markdown-body li { margin: 0.2em 0; }
+.markdown-body a { color: #b91c1c; text-decoration: underline; }
+.markdown-body code { background: #f1f5f9; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+.markdown-body pre { background: #f1f5f9; padding: 0.8em; border-radius: 8px; overflow-x: auto; }
+.markdown-body blockquote { border-left: 4px solid #cbd5e1; padding-left: 1em; color: #475569; margin: 0.5em 0; }
+.markdown-body img { max-width: 100%; border-radius: 8px; }
+.markdown-body table { border-collapse: collapse; margin: 0.5em 0; }
+.markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 0.4em 0.7em; }

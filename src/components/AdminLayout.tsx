@@ -7,7 +7,7 @@ import { Button } from './ui';
 const NAV = [
   { to: '/admin', label: '结果录入' },
   { to: '/admin/schedule', label: '赛程管理' },
-  { to: '/admin/sports', label: '项目积分' },
+  { to: '/admin/sports', label: '项目管理' },
   { to: '/admin/taxonomy', label: '年级班级' },
   { to: '/admin/guide', label: '使用说明' },
 ];

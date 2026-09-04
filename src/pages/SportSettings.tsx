@@ -1,6 +1,6 @@
-// 项目积分规则设置：每个项目单独配置 胜/平/负 得分 + 是否允许平局。改后自动重算所有排行榜。
+// 项目管理：新增体育项目 + 每个项目单独配置 胜/平/负 得分 + 是否允许平局。改后自动重算所有排行榜。
 import { useEffect, useState } from 'react';
-import { fetchSports, updateScoringRules } from '../lib/api';
+import { fetchSports, updateScoringRules, createSport } from '../lib/api';
 import type { Sport } from '../lib/types';
 import AdminLayout from '../components/AdminLayout';
 import { Button, Spinner, Toast } from '../components/ui';
@@ -10,10 +10,29 @@ export default function SportSettings() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [newName, setNewName] = useState('');
+  const [adding, setAdding] = useState(false);
   const { toast, showSuccess, showError } = useToast();
 
   const load = () => fetchSports().then((s) => { setSports(s); setLoading(false); });
   useEffect(() => { load(); }, []);
+
+  async function addSport() {
+    const name = newName.trim();
+    if (!name) return showError('请输入项目名称');
+    if (sports.some((s) => s.name === name)) return showError('该项目已存在');
+    setAdding(true);
+    try {
+      await createSport(name);
+      setNewName('');
+      showSuccess(`项目「${name}」已添加，默认积分规则为 胜3/平1/负0/允许平局，可在下方修改`);
+      await load();
+    } catch (e) {
+      showError((e as Error).message);
+    } finally {
+      setAdding(false);
+    }
+  }
 
   function patch(id: number, key: keyof Sport['scoring_rules'], value: number | boolean) {
     setSports((prev) => prev.map((s) => s.id === id ? { ...s, scoring_rules: { ...s.scoring_rules, [key]: value } } : s));
@@ -37,10 +56,20 @@ export default function SportSettings() {
     <AdminLayout>
       <Toast msg={toast.msg} type={toast.type} />
       <div className="bg-white rounded-xl border border-slate-100 p-4">
-        <h2 className="font-semibold mb-1">项目积分规则</h2>
+        <h2 className="font-semibold mb-1">项目管理</h2>
         <p className="text-sm text-slate-500 mb-4">
-          每个项目可单独设置胜、平、负得分。关闭「允许平局」的项目（如篮球、排球、乒乓球），录入比分时不允许出现平局。修改保存后会自动重新计算所有排行榜。
+          新增体育项目，或为每个项目单独设置胜、平、负得分。关闭「允许平局」的项目（如篮球、排球、乒乓球），录入比分时不允许出现平局。修改保存后会自动重新计算所有排行榜。
         </p>
+        <div className="flex gap-2 mb-4">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addSport(); }}
+            placeholder="新项目名称，如 羽毛球"
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand"
+          />
+          <Button onClick={addSport} disabled={adding || !newName.trim()}>{adding ? '添加中…' : '添加项目'}</Button>
+        </div>
         <div className="space-y-3">
           {sports.map((s) => (
             <div key={s.id} className="flex flex-wrap items-end gap-4 border border-slate-100 rounded-lg p-3">

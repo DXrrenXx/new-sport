@@ -1,9 +1,8 @@
-// 后台首页：按筛选查看比赛 → 录入比分（存后自动重算排行榜）→ 公告/页脚/邀请码设置（后两者仅超管）。
+// 后台首页：按筛选查看比赛 → 录入比分（存后自动重算排行榜）→ 公告设置。
 import { useEffect, useState } from 'react';
 import {
   fetchGrades, fetchSports, fetchWeeks, fetchMatches,
   updateMatchResult, recalcRankings, getAdminSettings, setAnnouncement, setFooter,
-  getSuperSettings, setInviteCode,
 } from '../lib/api';
 import type { Grade, Sport, EnrichedMatch } from '../lib/types';
 import { useAuth } from '../lib/auth';
@@ -26,7 +25,6 @@ export default function AdminDashboard() {
   const [as, setAs] = useState('');
   const [announcement, setAnn] = useState('');
   const [footer, setFoot] = useState('');
-  const [invite, setInvite] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const { isSuperAdmin } = useAuth();
@@ -39,9 +37,6 @@ export default function AdminDashboard() {
       if (g.length) setGradeId(g[0].id);
       if (s.length) setSportId(s[0].id);
       getAdminSettings().then((d) => { setAnn(d.content); setFoot(d.footer); }).catch(() => {});
-      if (isSuperAdmin) {
-        getSuperSettings().then((d) => setInvite(d.invite_code)).catch(() => {});
-      }
       setLoading(false);
     })();
   }, []);
@@ -109,19 +104,6 @@ export default function AdminDashboard() {
     try {
       await setFooter(footer);
       showSuccess('页脚已保存');
-    } catch (e) {
-      showError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveInvite() {
-    if (!invite.trim()) return showError('邀请码不能为空');
-    setBusy(true);
-    try {
-      await setInviteCode(invite.trim());
-      showSuccess('邀请码已保存，新注册管理员需使用新邀请码');
     } catch (e) {
       showError((e as Error).message);
     } finally {
@@ -207,24 +189,6 @@ export default function AdminDashboard() {
               />
               <div className="mt-3">
                 <Button onClick={saveFooter} disabled={busy}>保存页脚</Button>
-              </div>
-            </div>
-          )}
-
-          {isSuperAdmin && (
-            <div className="bg-white rounded-xl border border-slate-100 p-4">
-              <h2 className="font-semibold mb-2">邀请码设置</h2>
-              <p className="text-sm text-slate-500 mb-3">
-                新管理员注册时需填写此邀请码（即注册页「向超级管理员索取」的码）。保存后自动记入操作日志。
-              </p>
-              <input
-                value={invite}
-                onChange={(e) => setInvite(e.target.value)}
-                placeholder={invite ? '' : '尚未设置或加载失败'}
-                className="w-full border border-slate-300 rounded-lg p-3 text-sm font-mono outline-none focus:border-brand"
-              />
-              <div className="mt-3">
-                <Button onClick={saveInvite} disabled={busy || !invite.trim()}>保存邀请码</Button>
               </div>
             </div>
           )}

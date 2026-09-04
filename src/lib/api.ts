@@ -156,6 +156,11 @@ export function updateScoringRules(sportId: number, rules: Record<string, unknow
   return invoke('sports-settings', { action: 'update_rules', sportId, rules });
 }
 
+// 新增体育项目（后端默认积分规则：胜3/平1/负0/允许平局）
+export function createSport(name: string) {
+  return invoke('sports-settings', { action: 'create', name });
+}
+
 // 年级 / 班级管理
 export function createTaxonomy(entity: 'grade' | 'class', payload: Record<string, unknown>) {
   return invoke('manage-taxonomy', { entity, action: 'create', payload });

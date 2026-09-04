@@ -15,6 +15,7 @@ const ACTION_LABELS: Record<string, string> = {
   batch_import: '批量导入',
   update_scoring_rules: '修改积分规则',
   create_sport: '新增项目',
+  delete_sport: '删除项目',
   set_announcement: '修改公告',
   set_admin_guide: '修改使用说明',
   set_invite_code: '修改邀请码',

@@ -1,6 +1,6 @@
-// 项目管理：新增体育项目 + 每个项目单独配置 胜/平/负 得分 + 是否允许平局。改后自动重算所有排行榜。
+// 项目管理：新增/删除体育项目 + 每个项目单独配置 胜/平/负 得分 + 是否允许平局。改后自动重算所有排行榜。
 import { useEffect, useState } from 'react';
-import { fetchSports, updateScoringRules, createSport } from '../lib/api';
+import { fetchSports, updateScoringRules, createSport, deleteSport } from '../lib/api';
 import type { Sport } from '../lib/types';
 import AdminLayout from '../components/AdminLayout';
 import { Button, Spinner, Toast } from '../components/ui';
@@ -12,6 +12,7 @@ export default function SportSettings() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const { toast, showSuccess, showError } = useToast();
 
   const load = () => fetchSports().then((s) => { setSports(s); setLoading(false); });
@@ -31,6 +32,20 @@ export default function SportSettings() {
       showError((e as Error).message);
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function removeSport(s: Sport) {
+    if (!confirm(`确定删除项目「${s.name}」？\n若该项目下已有比赛将无法删除。`)) return;
+    setDeletingId(s.id);
+    try {
+      await deleteSport(s.id);
+      showSuccess(`项目「${s.name}」已删除`);
+      await load();
+    } catch (e) {
+      showError((e as Error).message);
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -82,8 +97,11 @@ export default function SportSettings() {
                   onChange={(e) => patch(s.id, 'allow_draw', e.target.checked)} />
                 允许平局
               </label>
-              <Button onClick={() => save(s)} disabled={savingId === s.id}>
+              <Button onClick={() => save(s)} disabled={savingId === s.id || deletingId === s.id}>
                 {savingId === s.id ? '保存中…' : '保存'}
+              </Button>
+              <Button variant="danger" onClick={() => removeSport(s)} disabled={savingId === s.id || deletingId === s.id}>
+                {deletingId === s.id ? '删除中…' : '删除'}
               </Button>
             </div>
           ))}

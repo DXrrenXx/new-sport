@@ -43,7 +43,7 @@ export function GradeSportWeekFilter({
       <Select label="年级" value={gradeId} onChange={onGrade}
         options={grades.map((g) => ({ value: g.id, label: g.name }))} />
       <Select label="项目" value={sportId} onChange={onSport}
-        options={sports.map((s) => ({ value: s.id, label: s.name }))} />
+        options={sports.length ? sports.map((s) => ({ value: s.id, label: s.name })) : [{ value: 0, label: '暂无项目' }]} />
       <Select label="周次" value={week} onChange={onWeek}
         options={weeks.length ? weeks.map((w) => ({ value: w, label: `第${w}周` })) : [{ value: 0, label: '暂无' }]} />
     </div>

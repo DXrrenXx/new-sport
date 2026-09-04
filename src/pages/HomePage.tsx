@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   fetchGrades, fetchSports, fetchWeeks, fetchMatches,
   fetchSportRankings, fetchTotalRankings, fetchPublicSettings, fetchClasses,
+  fetchSportIdsWithMatches,
 } from '../lib/api';
 import type { Grade, Sport, EnrichedMatch, SportRanking, TotalRanking, ClassRow } from '../lib/types';
 import { GradeSportWeekFilter } from '../components/Filters';
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [sportId, setSportId] = useState<number | ''>('');
   const [week, setWeek] = useState<number | ''>('');
   const [matches, setMatches] = useState<EnrichedMatch[]>([]);
+  const [gradeSports, setGradeSports] = useState<number[]>([]); // 当前年级下有比赛的项目
   const [announcement, setAnnouncement] = useState('');
   const [footer, setFooter] = useState('© 天津经济技术开发区第一中学 体育赛事管理系统');
   const [showTotal, setShowTotal] = useState(false);
@@ -34,6 +36,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   const classMap = useMemo(() => new Map(classes.map((c) => [c.id, c.name])), [classes]);
+  // 项目下拉只显示当前年级下有比赛的项目
+  const visibleSports = useMemo(
+    () => sports.filter((s) => gradeSports.includes(s.id)),
+    [sports, gradeSports],
+  );
 
   // 初始化
   useEffect(() => {
@@ -42,13 +49,22 @@ export default function HomePage() {
         const [g, s, c] = await Promise.all([fetchGrades(), fetchSports(), fetchClasses()]);
         setGrades(g); setSports(s); setClasses(c);
         if (g.length) setGradeId(g[0].id);
-        if (s.length) setSportId(s[0].id);
+        // 项目选中由下方 effect 根据「该年级下有比赛的项目」自动决定
         fetchPublicSettings().then((d) => { setAnnouncement(d.content); if (d.footer) setFooter(d.footer); }).catch(() => {});
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
+  // 年级变化 → 载入该年级下有比赛的项目，并自动选中第一个
+  useEffect(() => {
+    if (!gradeId) return;
+    fetchSportIdsWithMatches(gradeId).then((ids) => {
+      setGradeSports(ids);
+      setSportId((prev) => (prev && ids.includes(prev) ? prev : (ids.length ? ids[0] : '')));
+    });
+  }, [gradeId]);
 
   // 年级/项目变化 → 载入周次
   useEffect(() => {
@@ -70,6 +86,7 @@ export default function HomePage() {
     if (!gradeId) return;
     if (showTotal) fetchTotalRankings(gradeId).then(setTotalRank);
     else if (sportId) fetchSportRankings(gradeId, sportId).then(setSportRank);
+    else setSportRank([]); // 该年级无比赛时清空，避免显示上一个年级的排名
   }, [gradeId, sportId, showTotal, matches]);
 
   if (loading) return <Spinner />;
@@ -94,9 +111,10 @@ export default function HomePage() {
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
           <GradeSportWeekFilter
-            grades={grades} sports={sports} weeks={weeks}
+            grades={grades} sports={visibleSports} weeks={weeks}
             gradeId={gradeId} sportId={sportId} week={week}
-            onGrade={setGradeId} onSport={setSportId} onWeek={setWeek}
+            onGrade={(v) => { setGradeId(v); setSportId(''); }}
+            onSport={setSportId} onWeek={setWeek}
           />
         </section>
 

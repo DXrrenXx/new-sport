@@ -88,6 +88,14 @@ export async function fetchWeeks(gradeId: number, sportId: number): Promise<numb
   return [...new Set((data as { week: number }[]).map((r) => r.week))].sort((a, b) => a - b);
 }
 
+// 某年级下有比赛的项目 ID 列表（用于前台过滤项目下拉框）
+export async function fetchSportIdsWithMatches(gradeId: number): Promise<number[]> {
+  const { data, error } = await supabase
+    .from('matches').select('sport_id').eq('grade_id', gradeId);
+  if (error) throw error;
+  return [...new Set((data as { sport_id: number }[]).map((r) => r.sport_id))];
+}
+
 export async function fetchSportRankings(gradeId: number, sportId: number): Promise<SportRanking[]> {
   const { data, error } = await supabase
     .from('sport_rankings').select('*').eq('grade_id', gradeId).eq('sport_id', sportId);
@@ -159,6 +167,11 @@ export function updateScoringRules(sportId: number, rules: Record<string, unknow
 // 新增体育项目（后端默认积分规则：胜3/平1/负0/允许平局）
 export function createSport(name: string) {
   return invoke('sports-settings', { action: 'create', name });
+}
+
+// 删除体育项目（该项目下已有比赛时后端会拒绝）
+export function deleteSport(sportId: number) {
+  return invoke('sports-settings', { action: 'delete', sportId });
 }
 
 // 年级 / 班级管理

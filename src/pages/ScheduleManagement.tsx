@@ -7,7 +7,7 @@ import {
 import type { Grade, Sport, ClassRow, EnrichedMatch, MatchStatus } from '../lib/types';
 import AdminLayout from '../components/AdminLayout';
 import { GradeSportWeekFilter, Select } from '../components/Filters';
-import { Button, Spinner, StatusBadge, Toast } from '../components/ui';
+import { Button, Spinner, StatusBadge, StageBadge, Toast } from '../components/ui';
 import { useToast } from '../lib/useToast';
 
 const STATUS_OPTS: { value: MatchStatus; label: string }[] = [
@@ -47,12 +47,12 @@ export default function ScheduleManagement() {
 
   useEffect(() => {
     if (!gradeId || !sportId) return;
-    fetchWeeks(gradeId, sportId).then(setWeeks);
+    fetchWeeks(gradeId, sportId, 'all').then(setWeeks);
   }, [gradeId, sportId, matches]);
 
   const reload = () => {
     if (!gradeId || !sportId) { setMatches([]); return; }
-    fetchMatches({ gradeId, sportId, week: week === '' ? undefined : week }).then(setMatches);
+    fetchMatches({ gradeId, sportId, week: week === '' ? undefined : week, stage: 'all' }).then(setMatches);
   };
   useEffect(reload, [gradeId, sportId, week]);
 
@@ -60,6 +60,8 @@ export default function ScheduleManagement() {
   function toFriendly(m: EnrichedMatch) {
     return {
       grade: m.grade_name, sport: m.sport_name, week: m.week,
+      stage: m.stage === 'group' ? '小组赛' : m.stage === 'third' ? '三四名' : `淘汰赛第${m.round ?? 0}轮`,
+      group: m.group_label ?? '', round: m.round ?? '',
       homeClass: m.home_class_name, awayClass: m.away_class_name,
       score: m.status === 'completed' ? `${m.home_score}:${m.away_score}` : '',
       status: m.status,
@@ -76,10 +78,10 @@ export default function ScheduleManagement() {
     download('赛程.json', JSON.stringify(matches.map(toFriendly), null, 2), 'application/json');
   }
   function exportCSV() {
-    const header = 'ID,年级,项目,周次,主队,客队,比分,状态';
+    const header = 'ID,年级,项目,阶段,小组,轮次,周次,主队,客队,比分,状态';
     const rows = matches.map((m) => {
       const f = toFriendly(m);
-      return [m.id, f.grade, f.sport, f.week, f.homeClass, f.awayClass, f.score, f.status].join(',');
+      return [m.id, f.grade, f.sport, f.stage, f.group, f.round, f.week, f.homeClass, f.awayClass, f.score, f.status].join(',');
     });
     download('赛程.csv', '﻿' + [header, ...rows].join('\n'), 'text/csv');
   }
@@ -92,7 +94,9 @@ export default function ScheduleManagement() {
     exportJSON(); // 自动备份
     setBusy(true);
     try {
-      for (const m of matches) await deleteMatch(m.id);
+      // 按轮次降序删除（决赛→…→首轮→小组赛），避免被引用检查拦截
+      const ordered = [...matches].sort((a, b) => (b.round ?? 0) - (a.round ?? 0));
+      for (const m of ordered) await deleteMatch(m.id);
       showSuccess('已删除所选比赛，排行榜已自动更新');
       reload();
     } catch (e) {
@@ -188,14 +192,20 @@ export default function ScheduleManagement() {
                           <input type="number" value={editData.week} onChange={(e) => setEditData({ ...editData, week: e.target.value })}
                             className="w-14 border rounded px-2 py-1" />
                         </td>
-                        <td className="px-3 py-2">{m.home_class_name}</td>
+                        <td className="px-3 py-2">{m.home_class_name || '待定'}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap">
-                          <input type="number" value={editData.home_score} onChange={(e) => setEditData({ ...editData, home_score: e.target.value })}
-                            className="w-12 border rounded px-1 py-1 text-center" /> :
-                          <input type="number" value={editData.away_score} onChange={(e) => setEditData({ ...editData, away_score: e.target.value })}
-                            className="w-12 border rounded px-1 py-1 text-center" />
+                          {m.stage === 'group' ? (
+                            <>
+                              <input type="number" value={editData.home_score} onChange={(e) => setEditData({ ...editData, home_score: e.target.value })}
+                                className="w-12 border rounded px-1 py-1 text-center" /> :
+                              <input type="number" value={editData.away_score} onChange={(e) => setEditData({ ...editData, away_score: e.target.value })}
+                                className="w-12 border rounded px-1 py-1 text-center" />
+                            </>
+                          ) : (
+                            <span className="text-slate-400 text-xs">比分请在淘汰赛管理页录入</span>
+                          )}
                         </td>
-                        <td className="px-3 py-2">{m.away_class_name}</td>
+                        <td className="px-3 py-2">{m.away_class_name || '待定'}</td>
                         <td className="px-3 py-2 text-center">
                           <select value={editData.status} onChange={(e) => setEditData({ ...editData, status: e.target.value })}
                             className="border rounded px-2 py-1">
@@ -209,12 +219,12 @@ export default function ScheduleManagement() {
                       </>
                     ) : (
                       <>
-                        <td className="px-3 py-2">第{m.week}周</td>
-                        <td className="px-3 py-2">{m.home_class_name}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">第{m.week}周 <StageBadge stage={m.stage} /></td>
+                        <td className="px-3 py-2">{m.home_class_name || <span className="text-slate-400">待定</span>}</td>
                         <td className="px-3 py-2 text-center font-mono">
                           {m.status === 'completed' ? `${m.home_score} : ${m.away_score}` : '—'}
                         </td>
-                        <td className="px-3 py-2">{m.away_class_name}</td>
+                        <td className="px-3 py-2">{m.away_class_name || <span className="text-slate-400">待定</span>}</td>
                         <td className="px-3 py-2 text-center"><StatusBadge status={m.status} /></td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
                           <button className="text-brand hover:underline mr-3" onClick={() => startEdit(m)}>编辑</button>
@@ -244,6 +254,7 @@ function AddMatchForm({
   const [gradeId, setGradeId] = useState<number | ''>(defaultGrade);
   const [sportId, setSportId] = useState<number | ''>(defaultSport);
   const [week, setWeek] = useState('1');
+  const [group, setGroup] = useState('');
   const [home, setHome] = useState<number | ''>('');
   const [away, setAway] = useState<number | ''>('');
   const [status, setStatus] = useState<MatchStatus>('pending');
@@ -258,6 +269,7 @@ function AddMatchForm({
     try {
       await createMatch({
         grade_id: gradeId, sport_id: sportId, week: Number(week),
+        group_label: group.trim() || null,
         home_class_id: home, away_class_id: away, status,
       });
       onSuccess('比赛已添加'); onDone();
@@ -266,7 +278,7 @@ function AddMatchForm({
 
   return (
     <div className="bg-white rounded-xl border border-slate-100 p-4">
-      <h3 className="font-semibold mb-3">添加比赛</h3>
+      <h3 className="font-semibold mb-3">添加比赛（小组赛）</h3>
       <div className="flex flex-wrap items-end gap-3">
         <Select label="年级" value={gradeId} onChange={(v: number) => { setGradeId(v); setHome(''); setAway(''); }}
           options={grades.map((g) => ({ value: g.id, label: g.name }))} />
@@ -276,6 +288,11 @@ function AddMatchForm({
           <span className="text-slate-500">周次</span>
           <input type="number" min="1" value={week} onChange={(e) => setWeek(e.target.value)}
             className="w-20 border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-slate-500">小组</span>
+          <input value={group} onChange={(e) => setGroup(e.target.value)} placeholder="如 A"
+            className="w-16 border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand" />
         </label>
         <Select label="主队" value={home} onChange={(v: number) => setHome(v)}
           options={[{ value: 0, label: '选择' }, ...gradeClasses.map((c) => ({ value: c.id, label: c.name }))]} />
@@ -296,16 +313,23 @@ function ImportPanel({
   const [busy, setBusy] = useState(false);
 
   const sample = JSON.stringify([
-    { grade: '高一', sport: '篮球', week: 1, homeClass: '1班', awayClass: '2班', score: '20:18', status: 'completed' },
-    { grade: '高一', sport: '篮球', week: 1, homeClass: '3班', awayClass: '4班', score: '', status: 'pending' },
+    { grade: '高一', sport: '篮球', group: 'A', week: 1, homeClass: '1班', awayClass: '2班', score: '20:18', status: 'completed' },
+    { grade: '高一', sport: '篮球', group: 'A', week: 1, homeClass: '3班', awayClass: '4班', score: '', status: 'pending' },
   ], null, 2);
 
   function parseCSV(csv: string) {
     const lines = csv.trim().split(/\r?\n/).filter(Boolean);
     // 跳过表头（若首行含"年级"）
     const start = lines[0]?.includes('年级') ? 1 : 0;
+    // 新模板表头含「小组」；无表头时按列数判断（8 列为新格式含小组，7 列为旧格式）
+    const hasGroup = lines[0]?.includes('小组') || lines[start]?.split(',').length >= 8;
     return lines.slice(start).map((line) => {
-      const [grade, sport, week, homeClass, awayClass, score, status] = line.split(',');
+      const cols = line.split(',');
+      if (hasGroup) {
+        const [grade, sport, group, week, homeClass, awayClass, score, status] = cols;
+        return { grade, sport, group, week: Number(week), homeClass, awayClass, score: score ?? '', status: (status || 'pending').trim() };
+      }
+      const [grade, sport, week, homeClass, awayClass, score, status] = cols;
       return { grade, sport, week: Number(week), homeClass, awayClass, score: score ?? '', status: (status || 'pending').trim() };
     });
   }
@@ -326,7 +350,7 @@ function ImportPanel({
   }
 
   function downloadTemplate() {
-    const csv = '﻿年级,项目,周次,主队,客队,比分,状态\n高一,篮球,1,1班,2班,20:18,completed';
+    const csv = '﻿年级,项目,小组,周次,主队,客队,比分,状态\n高一,篮球,A,1,1班,2班,20:18,completed\n高一,篮球,A,1,3班,4班,,pending';
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = '导入模板.csv'; a.click();
@@ -336,7 +360,7 @@ function ImportPanel({
     <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
       <h3 className="font-semibold">批量导入</h3>
       <p className="text-sm text-slate-500">
-        粘贴 JSON 数组，或上传/粘贴 CSV。班级名称会自动转换为对应 ID。比分留空或状态非 completed 视为未开始。
+        粘贴 JSON 数组，或上传/粘贴 CSV。班级名称会自动转换为对应 ID；「小组」列为可选项（旧模板无此列也兼容）。比分留空或状态非 completed 视为未开始。
       </p>
       <div className="flex flex-wrap gap-2">
         <label className="cursor-pointer">

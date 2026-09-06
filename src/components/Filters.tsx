@@ -33,10 +33,13 @@ export function GradeSportWeekFilter({
   grades, sports, weeks,
   gradeId, sportId, week,
   onGrade, onSport, onWeek,
+  groups, groupLabel, onGroup,
 }: {
   grades: Grade[]; sports: Sport[]; weeks: number[];
   gradeId: number | ''; sportId: number | ''; week: number | '';
   onGrade: (v: number) => void; onSport: (v: number) => void; onWeek: (v: number) => void;
+  // 可选的小组筛选（传了 groups 才显示）
+  groups?: string[]; groupLabel?: string; onGroup?: (v: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -46,6 +49,10 @@ export function GradeSportWeekFilter({
         options={sports.length ? sports.map((s) => ({ value: s.id, label: s.name })) : [{ value: 0, label: '暂无项目' }]} />
       <Select label="周次" value={week} onChange={onWeek}
         options={weeks.length ? weeks.map((w) => ({ value: w, label: `第${w}周` })) : [{ value: 0, label: '暂无' }]} />
+      {groups && onGroup && (
+        <Select label="小组" value={groupLabel ?? ''} onChange={onGroup}
+          options={[{ value: '', label: '全部' }, ...groups.map((g) => ({ value: g, label: `${g}组` }))]} />
+      )}
     </div>
   );
 }

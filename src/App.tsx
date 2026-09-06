@@ -10,6 +10,8 @@ import SportSettings from './pages/SportSettings';
 import GradeClassSettings from './pages/GradeClassSettings';
 import AdminLogs from './pages/AdminLogs';
 import AdminGuide from './pages/AdminGuide';
+import KnockoutPage from './pages/KnockoutPage';
+import KnockoutManagement from './pages/KnockoutManagement';
 
 // 需要登录才能访问的路由；requireSuper=true 时还要求超管
 function Protected({ children, requireSuper = false }: { children: ReactNode; requireSuper?: boolean }) {
@@ -26,9 +28,11 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/knockout" element={<KnockoutPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />
         <Route path="/admin/schedule" element={<Protected><ScheduleManagement /></Protected>} />
+        <Route path="/admin/knockout" element={<Protected><KnockoutManagement /></Protected>} />
         <Route path="/admin/sports" element={<Protected><SportSettings /></Protected>} />
         <Route path="/admin/taxonomy" element={<Protected><GradeClassSettings /></Protected>} />
         <Route path="/admin/guide" element={<Protected><AdminGuide /></Protected>} />

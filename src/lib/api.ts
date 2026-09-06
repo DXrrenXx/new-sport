@@ -3,7 +3,7 @@
 // - 写入 / 敏感操作：一律调用 Edge Function（函数内做登录与权限校验，用 service_role 写库）。
 import { supabase } from './supabase';
 import type {
-  Grade, Sport, ClassRow, EnrichedMatch, SportRanking, TotalRanking, AdminLog,
+  Grade, Sport, ClassRow, EnrichedMatch, SportRanking, TotalRanking, AdminLog, MatchStage,
 } from './types';
 
 // ---------- 调用 Edge Function 的通用封装 ----------
@@ -57,13 +57,15 @@ export async function fetchClasses(gradeId?: number): Promise<ClassRow[]> {
 }
 
 // 拉取赛程并在前端富化名称（读取用公开策略，避免依赖 Edge Function）
+// stage 可选过滤；TBD（班级为 null）位置名称输出空字符串，由展示层显示"待定"
 export async function fetchMatches(params: {
-  gradeId?: number; sportId?: number; week?: number;
+  gradeId?: number; sportId?: number; week?: number; stage?: MatchStage | 'all';
 }): Promise<EnrichedMatch[]> {
   let q = supabase.from('matches').select('*').order('week').order('created_at');
   if (params.gradeId) q = q.eq('grade_id', params.gradeId);
   if (params.sportId) q = q.eq('sport_id', params.sportId);
   if (params.week != null) q = q.eq('week', params.week);
+  if (params.stage && params.stage !== 'all') q = q.eq('stage', params.stage);
   const { data, error } = await q;
   if (error) throw error;
 
@@ -75,23 +77,32 @@ export async function fetchMatches(params: {
     ...m,
     grade_name: gMap.get(m.grade_id) ?? '?',
     sport_name: sMap.get(m.sport_id) ?? '?',
-    home_class_name: cMap.get(m.home_class_id) ?? '?',
-    away_class_name: cMap.get(m.away_class_id) ?? '?',
+    home_class_name: m.home_class_id != null ? (cMap.get(m.home_class_id) ?? '?') : '',
+    away_class_name: m.away_class_id != null ? (cMap.get(m.away_class_id) ?? '?') : '',
   }));
 }
 
-// 某年级+项目下已存在的周次列表
-export async function fetchWeeks(gradeId: number, sportId: number): Promise<number[]> {
-  const { data, error } = await supabase
-    .from('matches').select('week').eq('grade_id', gradeId).eq('sport_id', sportId);
+// 某年级+项目下已存在的周次列表（默认只看小组赛；stage='all' 时含淘汰赛周）
+export async function fetchWeeks(gradeId: number, sportId: number, stage: MatchStage | 'all' = 'group'): Promise<number[]> {
+  let q = supabase.from('matches').select('week').eq('grade_id', gradeId).eq('sport_id', sportId);
+  if (stage !== 'all') q = q.eq('stage', stage);
+  const { data, error } = await q;
   if (error) throw error;
   return [...new Set((data as { week: number }[]).map((r) => r.week))].sort((a, b) => a - b);
 }
 
-// 某年级下有比赛的项目 ID 列表（用于前台过滤项目下拉框）
+// 某年级下有小组赛的项目 ID 列表（用于前台过滤项目下拉框）
 export async function fetchSportIdsWithMatches(gradeId: number): Promise<number[]> {
   const { data, error } = await supabase
-    .from('matches').select('sport_id').eq('grade_id', gradeId);
+    .from('matches').select('sport_id').eq('grade_id', gradeId).eq('stage', 'group');
+  if (error) throw error;
+  return [...new Set((data as { sport_id: number }[]).map((r) => r.sport_id))];
+}
+
+// 某年级下有淘汰赛的项目 ID 列表（用于淘汰赛页过滤项目下拉框）
+export async function fetchSportIdsWithKnockout(gradeId: number): Promise<number[]> {
+  const { data, error } = await supabase
+    .from('matches').select('sport_id').eq('grade_id', gradeId).neq('stage', 'group');
   if (error) throw error;
   return [...new Set((data as { sport_id: number }[]).map((r) => r.sport_id))];
 }
@@ -127,6 +138,10 @@ export function updateMatch(matchId: number, matchData: Record<string, unknown>)
 }
 export function deleteMatch(matchId: number) {
   return invoke('manage-matches', { action: 'delete', matchId });
+}
+// 重置比赛：清空比分与状态回 pending（下游已开打时后端会拒绝）
+export function resetMatch(matchId: number) {
+  return invoke('manage-matches', { action: 'reset', matchId });
 }
 
 export function recalcRankings(gradeId?: number) {
@@ -194,4 +209,21 @@ export function fetchAdminLogs(filter: { actor?: string; actionType?: string } =
 export async function verifyInvite(code: string): Promise<boolean> {
   const d = await invoke<{ valid: boolean }>('verify-invite', { code });
   return d.valid;
+}
+
+// 队伍来源表达式的展示文案：group:A:1 -> A组第1名；winner:123 -> 上一轮胜者；loser:123 -> 上一轮负者
+export function sourceLabel(source: string | null): string {
+  if (!source) return '';
+  const gm = /^group:(.+):(\d+)$/.exec(source);
+  if (gm) return `${gm[1]}组第${gm[2]}名`;
+  if (/^winner:\d+$/.test(source)) return '上一轮胜者';
+  if (/^loser:\d+$/.test(source)) return '上一轮负者';
+  return source;
+}
+
+// 淘汰赛轮次的展示文案：总轮数为 R 时，第 r 轮为决赛，第 r-1 轮为半决赛（R=1 时即决赛）
+export function roundLabel(round: number, totalRounds: number): string {
+  if (round === totalRounds) return '决赛';
+  if (round === totalRounds - 1) return '半决赛';
+  return `第${round}轮`;
 }

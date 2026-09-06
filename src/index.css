@@ -27,3 +27,39 @@ body {
 .markdown-body img { max-width: 100%; border-radius: 8px; }
 .markdown-body table { border-collapse: collapse; margin: 0.5em 0; }
 .markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 0.4em 0.7em; }
+
+/* 淘汰赛对阵树：按轮次分列，卡片右侧短线 + 列间竖线 */
+.bracket-wrap { display: flex; min-width: 660px; padding: 8px 0; }
+.bracket-col { display: flex; flex-direction: column; justify-content: space-around; gap: 12px; min-width: 168px; }
+.bracket-round-label { text-align: center; font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
+.bracket-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 150px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.bracket-card::after {
+  content: '';
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  width: 12px;
+  border-top: 2px solid #cbd5e1;
+}
+.bracket-card.champion { border: 2px solid #b91c1c; font-weight: 700; text-align: center; padding: 14px 12px; }
+.bracket-card.champion.champion-done { background: #fef2f2; color: #b91c1c; }
+.bracket-card.champion::after { display: none; }
+.bracket-card-round { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; }
+.bracket-gap { position: relative; width: 12px; margin: 0 -12px; }
+.bracket-gap::before {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 50%;
+  border-left: 2px solid #cbd5e1;
+}

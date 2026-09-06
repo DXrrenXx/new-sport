@@ -48,7 +48,8 @@ export default function AdminDashboard() {
 
   const reload = () => {
     if (!gradeId || !sportId || week === '') { setMatches([]); return; }
-    fetchMatches({ gradeId, sportId, week }).then(setMatches);
+    // 本页只负责小组赛录分；淘汰赛在「淘汰赛」管理页录
+    fetchMatches({ gradeId, sportId, week, stage: 'group' }).then(setMatches);
   };
   useEffect(reload, [gradeId, sportId, week]);
 

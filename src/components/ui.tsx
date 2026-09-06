@@ -1,6 +1,6 @@
 // 通用小组件：按钮、加载态、结果/状态标签、消息提示。
 import type { ReactNode } from 'react';
-import type { MatchResult, MatchStatus } from '../lib/types';
+import type { MatchResult, MatchStatus, MatchStage } from '../lib/types';
 
 export function Button({
   children, onClick, variant = 'primary', disabled, type = 'button', className = '',
@@ -38,6 +38,16 @@ export function StatusBadge({ status }: { status: MatchStatus }) {
   };
   const [text, cls] = map[status];
   return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{text}</span>;
+}
+
+// 阶段徽章：小组赛不显示，淘汰赛/三四名显示
+export function StageBadge({ stage }: { stage: MatchStage }) {
+  if (stage === 'group') return null;
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${stage === 'third' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
+      {stage === 'third' ? '三四名' : '淘汰赛'}
+    </span>
+  );
 }
 
 export function ResultText({

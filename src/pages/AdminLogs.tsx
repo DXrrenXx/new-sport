@@ -25,6 +25,7 @@ const ACTION_LABELS: Record<string, string> = {
   create_class: '新增班级',
   update_class: '修改班级',
   delete_class: '删除班级',
+  match_reset: '重置比赛',
 };
 
 export default function AdminLogs() {

@@ -3,6 +3,8 @@
 
 export type MatchResult = 'pending' | 'home_win' | 'away_win' | 'draw';
 export type MatchStatus = 'pending' | 'in_progress' | 'completed';
+// 比赛阶段：group 小组赛 | knockout 淘汰赛（任意轮次）| third 三四名赛
+export type MatchStage = 'group' | 'knockout' | 'third';
 
 export interface Grade {
   id: number;
@@ -34,8 +36,13 @@ export interface Match {
   grade_id: number;
   sport_id: number;
   week: number;
-  home_class_id: number;
-  away_class_id: number;
+  stage: MatchStage;
+  round: number | null; // 淘汰赛轮次（1=首轮），小组赛为 null
+  group_label: string | null; // 小组标签（A/B/C/D），仅小组赛
+  home_class_id: number | null; // 淘汰赛 TBD 位置为 null
+  away_class_id: number | null;
+  home_source: string | null; // 队伍来源：group:A:1 | winner:123 | loser:123
+  away_source: string | null;
   home_score: number | null;
   away_score: number | null;
   result: MatchResult;
@@ -44,7 +51,7 @@ export interface Match {
   updated_at: string;
 }
 
-// 前台/后台列表用的富化比赛（带名称）
+// 前台/后台列表用的富化比赛（带名称）；TBD 位置名称为空字符串
 export interface EnrichedMatch extends Match {
   home_class_name: string;
   away_class_name: string;

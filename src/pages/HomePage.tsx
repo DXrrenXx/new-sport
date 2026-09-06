@@ -28,6 +28,7 @@ export default function HomePage() {
   const [week, setWeek] = useState<number | ''>('');
   const [matches, setMatches] = useState<EnrichedMatch[]>([]);
   const [gradeSports, setGradeSports] = useState<number[]>([]); // 当前年级下有比赛的项目
+  const [groupFilter, setGroupFilter] = useState(''); // 小组筛选（''=全部）
   const [announcement, setAnnouncement] = useState('');
   const [footer, setFooter] = useState('© 天津经济技术开发区第一中学 体育赛事管理系统');
   const [showTotal, setShowTotal] = useState(false);
@@ -40,6 +41,17 @@ export default function HomePage() {
   const visibleSports = useMemo(
     () => sports.filter((s) => gradeSports.includes(s.id)),
     [sports, gradeSports],
+  );
+  // 当前周比赛里出现的小组（用于小组筛选下拉）
+  const groupList = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of matches) if (m.group_label) set.add(m.group_label);
+    return [...set].sort();
+  }, [matches]);
+  // 小组筛选后的比赛
+  const displayMatches = useMemo(
+    () => (groupFilter ? matches.filter((m) => m.group_label === groupFilter) : matches),
+    [matches, groupFilter],
   );
 
   // 初始化
@@ -66,7 +78,7 @@ export default function HomePage() {
     });
   }, [gradeId]);
 
-  // 年级/项目变化 → 载入周次
+  // 年级/项目变化 → 载入周次（仅小组赛周）
   useEffect(() => {
     if (!gradeId || !sportId) return;
     fetchWeeks(gradeId, sportId).then((w) => {
@@ -75,10 +87,10 @@ export default function HomePage() {
     });
   }, [gradeId, sportId]);
 
-  // 筛选变化 → 载入比赛
+  // 筛选变化 → 载入小组赛
   useEffect(() => {
     if (!gradeId || !sportId || week === '') { setMatches([]); return; }
-    fetchMatches({ gradeId, sportId, week }).then(setMatches);
+    fetchMatches({ gradeId, sportId, week, stage: 'group' }).then(setMatches);
   }, [gradeId, sportId, week]);
 
   // 排行榜
@@ -109,23 +121,31 @@ export default function HomePage() {
           </div>
         )}
 
-        <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+        <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-wrap items-end justify-between gap-3">
           <GradeSportWeekFilter
             grades={grades} sports={visibleSports} weeks={weeks}
             gradeId={gradeId} sportId={sportId} week={week}
-            onGrade={(v) => { setGradeId(v); setSportId(''); }}
-            onSport={setSportId} onWeek={setWeek}
+            onGrade={(v) => { setGradeId(v); setSportId(''); setGroupFilter(''); }}
+            onSport={(v) => { setSportId(v); setGroupFilter(''); }} onWeek={setWeek}
+            groups={groupList} groupLabel={groupFilter} onGroup={setGroupFilter}
           />
+          <Link
+            to={gradeId && sportId ? `/knockout?gradeId=${gradeId}&sportId=${sportId}` : '/knockout'}
+            className="text-sm font-semibold text-brand hover:underline whitespace-nowrap"
+          >
+            淘汰赛对阵 →
+          </Link>
         </section>
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-          <h2 className="px-4 py-3 font-semibold border-b border-slate-100">赛程</h2>
-          {matches.length === 0 ? (
+          <h2 className="px-4 py-3 font-semibold border-b border-slate-100">小组赛赛程</h2>
+          {displayMatches.length === 0 ? (
             <p className="p-6 text-center text-slate-400 text-sm">该筛选条件下暂无比赛</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
+                  <th className="px-4 py-2 text-center w-12">组</th>
                   <th className="px-4 py-2 text-left">主队</th>
                   <th className="px-4 py-2 text-center">比分</th>
                   <th className="px-4 py-2 text-left">客队</th>
@@ -134,8 +154,9 @@ export default function HomePage() {
                 </tr>
               </thead>
               <tbody>
-                {matches.map((m) => (
+                {displayMatches.map((m) => (
                   <tr key={m.id} className="border-t border-slate-50">
+                    <td className="px-4 py-2 text-center text-slate-500">{m.group_label ?? '—'}</td>
                     <td className="px-4 py-2">{m.home_class_name}</td>
                     <td className="px-4 py-2 text-center font-mono">
                       {m.status === 'completed' ? `${m.home_score} : ${m.away_score}` : '—'}

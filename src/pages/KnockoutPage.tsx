@@ -1,5 +1,5 @@
 // 前台公开淘汰赛对阵页：年级/项目选择 + 通用对阵树（按轮次分列）+ 三四名赛 + 冠军卡。
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   fetchGrades, fetchSports, fetchMatches, fetchSportIdsWithKnockout,
@@ -68,6 +68,8 @@ export default function KnockoutPage() {
   const thirdWinner = thirdMatch
     ? (thirdMatch.result === 'home_win' ? thirdMatch.home_class_name : thirdMatch.result === 'away_win' ? thirdMatch.away_class_name : '')
     : '';
+  // 各列统一高度：按卡片最多的首轮计算（每张卡占 88px 槽位）
+  const bodyHeight = Math.max(1, ...rounds.map(([, ms]) => ms.length)) * 88;
 
   if (loading) return <Spinner />;
 
@@ -102,19 +104,31 @@ export default function KnockoutPage() {
             <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 overflow-x-auto">
               <div className="bracket-wrap">
                 {rounds.map(([r, ms], idx) => (
-                  <div key={r} className="flex items-stretch">
+                  <Fragment key={r}>
                     <div className="bracket-col">
-                      <div className="bracket-round-label">{roundLabel(r, maxRound)}</div>
-                      {ms.map((m) => <MatchCard key={m.id} m={m} roundLabel={roundLabel(r, maxRound)} />)}
+                      <div className="bracket-head">{roundLabel(r, maxRound)}</div>
+                      <div className="bracket-body" style={{ height: bodyHeight }}>
+                        {ms.map((m, i) => (
+                          <div
+                            key={m.id}
+                            className="bracket-slot"
+                            style={{ top: `${(2 * i + 1) * 100 / (2 * ms.length)}%` }}
+                          >
+                            <MatchCard m={m} entry={idx > 0} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    {idx < rounds.length - 1 && <div className="bracket-gap" />}
-                  </div>
+                    <BracketGap count={ms.length} height={bodyHeight} />
+                  </Fragment>
                 ))}
-                <div className="flex items-stretch">
-                  <div className="bracket-col">
-                    <div className="bracket-round-label">冠军</div>
-                    <div className={`bracket-card champion ${champion ? 'champion-done' : ''}`}>
-                      {champion || '待定'}
+                <div className="bracket-col">
+                  <div className="bracket-head">冠军</div>
+                  <div className="bracket-body" style={{ height: bodyHeight }}>
+                    <div className="bracket-slot" style={{ top: '50%' }}>
+                      <div className={`bracket-card entry champion ${champion ? 'champion-done' : ''}`}>
+                        {champion || '待定'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -124,12 +138,10 @@ export default function KnockoutPage() {
             {thirdMatch && (
               <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                 <h2 className="font-semibold mb-3">三四名决赛</h2>
-                <div className="bracket-col items-start">
-                  <MatchCard m={thirdMatch} roundLabel="三四名" />
+                <div className="bracket-col">
+                  <MatchCard m={thirdMatch} solo />
                 </div>
-                <p className="text-sm text-slate-500 mt-2">
-                  {thirdWinner ? `季军：${thirdWinner}` : '待定'}
-                </p>
+                <p className="text-sm text-slate-500 mt-2">季军：{thirdWinner || '待定'}</p>
               </section>
             )}
           </>
@@ -143,12 +155,25 @@ export default function KnockoutPage() {
   );
 }
 
-function MatchCard({ m, roundLabel }: { m: EnrichedMatch; roundLabel: string }) {
+function BracketGap({ count, height }: { count: number; height: number }) {
+  // 竖线连接左列第一张与最后一张卡片的中心（卡片中心位于 (2i+1)/(2n) 处）
+  const frac = 100 / (2 * count);
+  return (
+    <div className="bracket-gap">
+      <div className="bracket-head" />
+      <div className="bracket-body" style={{ height }}>
+        <div className="bracket-gap-line" style={{ top: `${frac}%`, bottom: `${frac}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MatchCard({ m, entry = false, solo = false }: { m: EnrichedMatch; entry?: boolean; solo?: boolean }) {
   const homeWin = m.result === 'home_win';
   const awayWin = m.result === 'away_win';
+  const cls = ['bracket-card', entry ? 'entry' : '', solo ? 'solo' : ''].filter(Boolean).join(' ');
   return (
-    <div className="bracket-card">
-      <div className="bracket-card-round">{roundLabel}</div>
+    <div className={cls}>
       <TeamRow name={m.home_class_name} source={m.home_source} score={m.home_score} showScore={m.status === 'completed'} strong={homeWin} dimmed={awayWin} />
       <TeamRow name={m.away_class_name} source={m.away_source} score={m.away_score} showScore={m.status === 'completed'} strong={awayWin} dimmed={homeWin} />
     </div>

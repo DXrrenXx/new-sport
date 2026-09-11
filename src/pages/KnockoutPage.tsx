@@ -6,6 +6,7 @@ import {
   sourceLabel, roundLabel,
 } from '../lib/api';
 import type { Grade, Sport, EnrichedMatch } from '../lib/types';
+import { SCHOOL_NAME, FOOTER_DEFAULT } from '../config';
 import { Select } from '../components/Filters';
 import { Spinner } from '../components/ui';
 
@@ -80,7 +81,7 @@ export default function KnockoutPage() {
       <header className="bg-brand text-white shadow">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-3">
           <h1 className="text-lg sm:text-2xl font-bold leading-tight">
-            天津经济技术开发区第一中学
+            {SCHOOL_NAME}
             <span className="block text-sm sm:text-base font-normal opacity-80 mt-1">淘汰赛对阵</span>
           </h1>
           <Link to="/" className="text-sm opacity-80 hover:opacity-100 underline whitespace-nowrap">← 返回首页</Link>
@@ -148,7 +149,7 @@ export default function KnockoutPage() {
         )}
 
         <footer className="text-center text-xs text-slate-400 py-6">
-          © 天津经济技术开发区第一中学 体育赛事管理系统
+          {FOOTER_DEFAULT}
         </footer>
       </div>
     </div>

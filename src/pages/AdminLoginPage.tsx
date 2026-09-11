@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { verifyInvite } from '../lib/api';
+import { SYSTEM_NAME } from '../config';
 import { Button, Toast } from '../components/ui';
 import { useToast } from '../lib/useToast';
 
@@ -52,7 +53,7 @@ export default function AdminLoginPage() {
       <Toast msg={toast.msg} type={toast.type} />
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
         <div className="text-center mb-6">
-          <h1 className="text-lg font-bold text-slate-800">体育赛事管理系统</h1>
+          <h1 className="text-lg font-bold text-slate-800">{SYSTEM_NAME}</h1>
           <p className="text-sm text-slate-400 mt-1">{mode === 'login' ? '管理员登录' : '注册新管理员'}</p>
         </div>
 

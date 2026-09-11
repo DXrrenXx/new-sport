@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { SYSTEM_NAME } from '../config';
 import { Button } from './ui';
 
 const NAV = [
@@ -25,7 +26,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <header className="bg-brand text-white shadow">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-base sm:text-lg font-bold">体育赛事管理 · 后台</h1>
+            <h1 className="text-base sm:text-lg font-bold">{SYSTEM_NAME} · 后台</h1>
             <div className="flex items-center gap-3 text-sm">
               <span className="opacity-90 hidden sm:inline">
                 {user?.email}

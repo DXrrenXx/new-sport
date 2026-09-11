@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import {
   fetchGrades, fetchSports, fetchWeeks, fetchMatches,
-  updateMatchResult, recalcRankings, getAdminSettings, setAnnouncement, setFooter,
+  recalcRankings, getAdminSettings, setAnnouncement, setFooter,
 } from '../lib/api';
 import type { Grade, Sport, EnrichedMatch } from '../lib/types';
 import { useAuth } from '../lib/auth';
 import AdminLayout from '../components/AdminLayout';
 import { GradeSportWeekFilter } from '../components/Filters';
 import { Button, Spinner, StatusBadge, Toast } from '../components/ui';
+import { ScoreModal } from '../components/ScoreModal';
 import { MarkdownEditor } from '../components/Markdown';
 import { useToast } from '../lib/useToast';
 
@@ -21,8 +22,6 @@ export default function AdminDashboard() {
   const [week, setWeek] = useState<number | ''>('');
   const [matches, setMatches] = useState<EnrichedMatch[]>([]);
   const [editing, setEditing] = useState<EnrichedMatch | null>(null);
-  const [hs, setHs] = useState('');
-  const [as, setAs] = useState('');
   const [announcement, setAnn] = useState('');
   const [footer, setFoot] = useState('');
   const [loading, setLoading] = useState(true);
@@ -52,28 +51,6 @@ export default function AdminDashboard() {
     fetchMatches({ gradeId, sportId, week, stage: 'group' }).then(setMatches);
   };
   useEffect(reload, [gradeId, sportId, week]);
-
-  function openEdit(m: EnrichedMatch) {
-    setEditing(m);
-    setHs(m.home_score?.toString() ?? '');
-    setAs(m.away_score?.toString() ?? '');
-  }
-
-  async function saveScore() {
-    if (!editing) return;
-    if (hs === '' || as === '') return showError('请填写双方得分');
-    setBusy(true);
-    try {
-      await updateMatchResult(editing.id, Number(hs), Number(as));
-      showSuccess('比赛结果已保存，排行榜已自动更新');
-      setEditing(null);
-      reload();
-    } catch (e) {
-      showError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleRecalc() {
     if (!gradeId) return;
@@ -152,7 +129,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-2">{m.away_class_name}</td>
                       <td className="px-4 py-2 text-center"><StatusBadge status={m.status} /></td>
                       <td className="px-4 py-2 text-right">
-                        <Button variant="secondary" onClick={() => openEdit(m)}>录入</Button>
+                        <Button variant="secondary" onClick={() => setEditing(m)}>录入</Button>
                       </td>
                     </tr>
                   ))}
@@ -197,28 +174,13 @@ export default function AdminDashboard() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-4 z-40" onClick={() => setEditing(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-4">录入比分</h3>
-            <div className="flex items-center gap-3 justify-center">
-              <div className="text-center">
-                <div className="text-sm text-slate-500 mb-1">{editing.home_class_name}</div>
-                <input type="number" min="0" value={hs} onChange={(e) => setHs(e.target.value)}
-                  className="w-20 border border-slate-300 rounded-lg px-3 py-2 text-center text-lg outline-none focus:border-brand" />
-              </div>
-              <span className="text-2xl text-slate-300 mt-5">:</span>
-              <div className="text-center">
-                <div className="text-sm text-slate-500 mb-1">{editing.away_class_name}</div>
-                <input type="number" min="0" value={as} onChange={(e) => setAs(e.target.value)}
-                  className="w-20 border border-slate-300 rounded-lg px-3 py-2 text-center text-lg outline-none focus:border-brand" />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <Button variant="secondary" className="flex-1" onClick={() => setEditing(null)}>取消</Button>
-              <Button className="flex-1" onClick={saveScore} disabled={busy}>保存</Button>
-            </div>
-          </div>
-        </div>
+        <ScoreModal
+          match={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); reload(); }}
+          onError={showError}
+          onSuccess={showSuccess}
+        />
       )}
     </AdminLayout>
   );

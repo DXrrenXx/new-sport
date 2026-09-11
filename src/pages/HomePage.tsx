@@ -7,6 +7,8 @@ import {
   fetchSportIdsWithMatches,
 } from '../lib/api';
 import type { Grade, Sport, EnrichedMatch, SportRanking, TotalRanking, ClassRow } from '../lib/types';
+import { computeStandings } from '../lib/standings';
+import { SCHOOL_NAME, FOOTER_DEFAULT } from '../config';
 import { GradeSportWeekFilter } from '../components/Filters';
 import { Spinner, StatusBadge, ResultText } from '../components/ui';
 import { MarkdownView } from '../components/Markdown';
@@ -28,9 +30,11 @@ export default function HomePage() {
   const [week, setWeek] = useState<number | ''>('');
   const [matches, setMatches] = useState<EnrichedMatch[]>([]);
   const [gradeSports, setGradeSports] = useState<number[]>([]); // 当前年级下有比赛的项目
-  const [groupFilter, setGroupFilter] = useState(''); // 小组筛选（''=全部）
+  const [groupFilter, setGroupFilter] = useState(''); // 赛程的小组筛选（''=全部）
+  const [allGroupMatches, setAllGroupMatches] = useState<EnrichedMatch[]>([]); // 该年级项目全部周的小组赛（供排行榜分组使用）
+  const [rankGroup, setRankGroup] = useState(''); // 排行榜分组标签（''=全部）
   const [announcement, setAnnouncement] = useState('');
-  const [footer, setFooter] = useState('© 天津经济技术开发区第一中学 体育赛事管理系统');
+  const [footer, setFooter] = useState(FOOTER_DEFAULT);
   const [showTotal, setShowTotal] = useState(false);
   const [sportRank, setSportRank] = useState<SportRanking[]>([]);
   const [totalRank, setTotalRank] = useState<TotalRanking[]>([]);
@@ -53,6 +57,29 @@ export default function HomePage() {
     () => (groupFilter ? matches.filter((m) => m.group_label === groupFilter) : matches),
     [matches, groupFilter],
   );
+  const sportRules = sports.find((s) => s.id === sportId)?.scoring_rules;
+  // 排行榜分组标签（来自全部周的小组赛）
+  const rankGroupList = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of allGroupMatches) if (m.group_label) set.add(m.group_label);
+    return [...set].sort();
+  }, [allGroupMatches]);
+  // 各组小组赛积分（与后台出线快照共用同一算法）
+  const groupStandings = useMemo(
+    () => computeStandings(allGroupMatches, sportRules ?? { win: 3, draw: 1, loss: 0, allow_draw: true }, classMap),
+    [allGroupMatches, sportRules, classMap],
+  );
+  // 某组的班级集合（用于过滤总排行榜；空集合表示该组暂无数据）
+  const groupClassIds = useMemo(() => {
+    const set = new Set<number>();
+    if (!rankGroup) return set;
+    for (const m of allGroupMatches) {
+      if (m.group_label !== rankGroup) continue;
+      if (m.home_class_id != null) set.add(m.home_class_id);
+      if (m.away_class_id != null) set.add(m.away_class_id);
+    }
+    return set;
+  }, [allGroupMatches, rankGroup]);
 
   // 初始化
   useEffect(() => {
@@ -87,6 +114,17 @@ export default function HomePage() {
     });
   }, [gradeId, sportId]);
 
+  // 年级/项目变化 → 载入全部周的小组赛（排行榜分组数据源），并重置分组标签
+  useEffect(() => {
+    if (!gradeId || !sportId) { setAllGroupMatches([]); setRankGroup(''); return; }
+    let ignore = false;
+    fetchMatches({ gradeId, sportId, stage: 'group' })
+      .then((ms) => { if (!ignore) setAllGroupMatches(ms); })
+      .catch(() => { if (!ignore) setAllGroupMatches([]); });
+    setRankGroup('');
+    return () => { ignore = true; };
+  }, [gradeId, sportId]);
+
   // 筛选变化 → 载入小组赛
   useEffect(() => {
     if (!gradeId || !sportId || week === '') { setMatches([]); return; }
@@ -108,7 +146,7 @@ export default function HomePage() {
       <header className="bg-brand text-white shadow">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-3">
           <h1 className="text-lg sm:text-2xl font-bold leading-tight">
-            天津经济技术开发区第一中学
+            {SCHOOL_NAME}
           </h1>
           <Link to="/admin/login" className="text-sm opacity-80 hover:opacity-100 underline whitespace-nowrap">管理员</Link>
         </div>
@@ -174,8 +212,23 @@ export default function HomePage() {
         </section>
 
         <section className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-semibold">排行榜</h2>
+          <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="font-semibold">排行榜</h2>
+              {rankGroupList.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {['', ...rankGroupList].map((g) => (
+                    <button
+                      key={g || 'all'}
+                      onClick={() => setRankGroup(g)}
+                      className={`px-3 py-1 rounded-lg text-sm transition ${rankGroup === g ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {g ? `${g}组` : '全部'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={showTotal} onChange={(e) => setShowTotal(e.target.checked)} />
               显示总排行榜
@@ -183,9 +236,16 @@ export default function HomePage() {
           </div>
           {showTotal ? (
             <RankTable
-              rows={[...totalRank].sort((a, b) => b.total_points - a.total_points)
+              rows={[...totalRank]
+                .filter((r) => !rankGroup || groupClassIds.has(r.class_id))
+                .sort((a, b) => b.total_points - a.total_points)
                 .map((r) => ({ name: classMap.get(r.class_id) ?? '?', cols: [r.total_points] }))}
               headers={['班级', '总积分']}
+            />
+          ) : rankGroup ? (
+            <RankTable
+              rows={(groupStandings.get(rankGroup) ?? []).map((r) => ({ name: r.name, cols: [r.wins, r.losses, r.draws, r.points] }))}
+              headers={['班级', '胜', '负', '平', '积分']}
             />
           ) : (
             <RankTable

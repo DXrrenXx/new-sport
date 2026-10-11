@@ -176,6 +176,7 @@ export default function AdminDashboard() {
       {editing && (
         <ScoreModal
           match={editing}
+          detailed={sports.find((s) => s.id === sportId)?.scoring_rules?.detailed ?? false}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); reload(); }}
           onError={showError}

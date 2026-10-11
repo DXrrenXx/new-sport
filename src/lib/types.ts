@@ -17,6 +17,13 @@ export interface ScoringRules {
   draw: number;
   loss: number;
   allow_draw: boolean;
+  detailed?: boolean; // 详细计分：三局两胜项目可录每局比分，净胜分用于同分排序
+}
+
+// 每局比分（仅详细计分项目）
+export interface SetScore {
+  home: number;
+  away: number;
 }
 
 export interface Sport {
@@ -45,6 +52,7 @@ export interface Match {
   away_source: string | null;
   home_score: number | null;
   away_score: number | null;
+  sets: SetScore[] | null; // 每局比分（详细计分项目，选填）
   result: MatchResult;
   status: MatchStatus;
   created_at: string;
@@ -68,6 +76,7 @@ export interface SportRanking {
   wins: number;
   losses: number;
   draws: number;
+  point_diff: number; // 净胜分（每局得分差累加），用于同分排序
 }
 
 export interface TotalRanking {

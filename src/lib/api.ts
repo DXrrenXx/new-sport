@@ -3,7 +3,7 @@
 // - 写入 / 敏感操作：一律调用 Edge Function（函数内做登录与权限校验，用 service_role 写库）。
 import { supabase } from './supabase';
 import type {
-  Grade, Sport, ClassRow, EnrichedMatch, SportRanking, TotalRanking, AdminLog, MatchStage,
+  Grade, Sport, ClassRow, EnrichedMatch, SportRanking, TotalRanking, AdminLog, MatchStage, SetScore,
 } from './types';
 
 // ---------- 调用 Edge Function 的通用封装 ----------
@@ -126,8 +126,11 @@ export async function fetchPublicSettings(): Promise<{ content: string; footer: 
 }
 
 // ---------- 写入 / 管理操作（走 Edge Function） ----------
-export function updateMatchResult(matchId: number, homeScore: number, awayScore: number) {
-  return invoke('update-match-result', { matchId, homeScore, awayScore });
+// sets：每局比分（详细计分项目可选）——undefined=不改动；null=清空；数组=校验并覆盖（局分由后端推导）
+export function updateMatchResult(
+  matchId: number, homeScore: number, awayScore: number, sets?: SetScore[] | null,
+) {
+  return invoke('update-match-result', { matchId, homeScore, awayScore, sets });
 }
 
 export function createMatch(matchData: Record<string, unknown>) {

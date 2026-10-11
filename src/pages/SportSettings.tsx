@@ -73,7 +73,8 @@ export default function SportSettings() {
       <div className="bg-white rounded-xl border border-slate-100 p-4">
         <h2 className="font-semibold mb-1">项目管理</h2>
         <p className="text-sm text-slate-500 mb-4">
-          新增体育项目，或为每个项目单独设置胜、平、负得分。关闭「允许平局」的项目（如篮球、排球、乒乓球），录入比分时不允许出现平局。修改保存后会自动重新计算所有排行榜。
+          新增体育项目，或为每个项目单独设置胜、平、负得分。关闭「允许平局」的项目（如篮球、排球、乒乓球），录入比分时不允许出现平局。
+          「详细计分」适用于三局两胜项目（排球、乒乓球等）：开启后录分时可填写每局比分，班级积分相同时按每局净胜分排序。修改保存后会自动重新计算所有排行榜。
         </p>
         <div className="flex gap-2 mb-4">
           <input
@@ -96,6 +97,11 @@ export default function SportSettings() {
                 <input type="checkbox" checked={s.scoring_rules.allow_draw}
                   onChange={(e) => patch(s.id, 'allow_draw', e.target.checked)} />
                 允许平局
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-600" title="三局两胜项目开启后，录分时可填写每局比分；积分相同时按每局净胜分排序">
+                <input type="checkbox" checked={!!s.scoring_rules.detailed}
+                  onChange={(e) => patch(s.id, 'detailed', e.target.checked)} />
+                详细计分
               </label>
               <Button onClick={() => save(s)} disabled={savingId === s.id || deletingId === s.id}>
                 {savingId === s.id ? '保存中…' : '保存'}

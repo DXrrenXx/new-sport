@@ -1,4 +1,5 @@
-// sports-settings: 管理体育项目及其计分规则 {win,draw,loss,allow_draw}。
+// sports-settings: 管理体育项目及其计分规则 {win,draw,loss,allow_draw,detailed}。
+// detailed=true 表示开启详细计分（三局两胜项目可录每局比分，净胜分用于同分排序）。
 // action=update_rules -> 登录管理员可改；action=create -> 新增项目；action=delete -> 删除项目（有比赛引用时拒绝）。
 // 改规则/删除后重算全部年级排行榜（数据库函数 recalc_rankings，只统计小组赛）。
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -33,6 +34,7 @@ Deno.serve(async (req) => {
         draw: Number(rules.draw) || 0,
         loss: Number(rules.loss) || 0,
         allow_draw: !!rules.allow_draw,
+        detailed: !!rules.detailed,
       };
       await admin.from('sports').update({ scoring_rules: clean }).eq('id', sportId);
       // 规则变了，重算所有年级（数据库函数）

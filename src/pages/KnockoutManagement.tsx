@@ -214,6 +214,7 @@ export default function KnockoutManagement() {
         <ScoreModal
           match={editing}
           knockout
+          detailed={sport?.scoring_rules?.detailed ?? false}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
           onError={showError}

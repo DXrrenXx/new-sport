@@ -114,16 +114,23 @@ export default function ScheduleManagement() {
 
   function startEdit(m: EnrichedMatch) {
     setEditRow(m.id);
+    // 详细计分项目：不预填比分（后端禁止直改比分，编辑仅周次/小组/状态）
+    const detailed = sports.find((s) => s.id === m.sport_id)?.scoring_rules?.detailed ?? false;
     setEditData({
       week: String(m.week), status: m.status,
-      home_score: m.home_score?.toString() ?? '', away_score: m.away_score?.toString() ?? '',
+      group_label: m.group_label ?? '',
+      home_score: detailed ? '' : (m.home_score?.toString() ?? ''),
+      away_score: detailed ? '' : (m.away_score?.toString() ?? ''),
     });
   }
+  // 该项目是否开启详细计分（录分需走弹窗填写每局比分）
+  const isDetailed = (sportId: number) => sports.find((s) => s.id === sportId)?.scoring_rules?.detailed ?? false;
   async function saveEdit(id: number) {
     try {
       const patch: Record<string, unknown> = {
         week: Number(editData.week), status: editData.status,
       };
+      if (editData.group_label !== undefined) patch.group_label = editData.group_label.trim() || null;
       if (editData.home_score !== '') patch.home_score = Number(editData.home_score);
       if (editData.away_score !== '') patch.away_score = Number(editData.away_score);
       await updateMatch(id, patch);
@@ -188,13 +195,18 @@ export default function ScheduleManagement() {
                   <tr key={m.id} className="border-t border-slate-50">
                     {editRow === m.id ? (
                       <>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 whitespace-nowrap">
                           <input type="number" value={editData.week} onChange={(e) => setEditData({ ...editData, week: e.target.value })}
                             className="w-14 border rounded px-2 py-1" />
+                          {m.stage === 'group' && (
+                            <input value={editData.group_label ?? ''} onChange={(e) => setEditData({ ...editData, group_label: e.target.value })}
+                              placeholder="组" title="小组（如 A）"
+                              className="w-12 border rounded px-2 py-1 ml-1" />
+                          )}
                         </td>
                         <td className="px-3 py-2">{m.home_class_name || '待定'}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap">
-                          {m.stage === 'group' ? (
+                          {m.stage === 'group' && !isDetailed(m.sport_id) ? (
                             <>
                               <input type="number" value={editData.home_score} onChange={(e) => setEditData({ ...editData, home_score: e.target.value })}
                                 className="w-12 border rounded px-1 py-1 text-center" /> :
@@ -202,7 +214,9 @@ export default function ScheduleManagement() {
                                 className="w-12 border rounded px-1 py-1 text-center" />
                             </>
                           ) : (
-                            <span className="text-slate-400 text-xs">比分请在淘汰赛管理页录入</span>
+                            <span className="text-slate-400 text-xs">
+                              {m.stage === 'group' ? '详细计分项目，请在「结果录入」弹窗填写比分' : '比分请在淘汰赛管理页录入'}
+                            </span>
                           )}
                         </td>
                         <td className="px-3 py-2">{m.away_class_name || '待定'}</td>

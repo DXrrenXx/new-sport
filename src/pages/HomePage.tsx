@@ -11,12 +11,14 @@ import { computeStandings } from '../lib/standings';
 import { SCHOOL_NAME, FOOTER_DEFAULT } from '../config';
 import { GradeSportWeekFilter } from '../components/Filters';
 import { Spinner, StatusBadge, ResultText } from '../components/ui';
+import { SetScoreDetail } from '../components/SetScoreDetail';
 import { MarkdownView } from '../components/Markdown';
 
-// 单项排名的二级排序：积分 → 胜场 → 净胜分（此处无逐队净胜分，用胜-负近似）→ 少负场
+// 单项排名的排序：积分 → 胜场 → 净胜分（详细计分项目的每局得分差累加）→ 少负场
 function sortSport(a: SportRanking, b: SportRanking) {
   if (b.points !== a.points) return b.points - a.points;
   if (b.wins !== a.wins) return b.wins - a.wins;
+  if ((b.point_diff ?? 0) !== (a.point_diff ?? 0)) return (b.point_diff ?? 0) - (a.point_diff ?? 0);
   return a.losses - b.losses;
 }
 
@@ -196,8 +198,11 @@ export default function HomePage() {
                   <tr key={m.id} className="border-t border-slate-50">
                     <td className="px-4 py-2 text-center text-slate-500">{m.group_label ?? '—'}</td>
                     <td className="px-4 py-2">{m.home_class_name}</td>
-                    <td className="px-4 py-2 text-center font-mono">
+                    <td className="px-4 py-2 text-center font-mono whitespace-nowrap">
                       {m.status === 'completed' ? `${m.home_score} : ${m.away_score}` : '—'}
+                      {m.status === 'completed' && m.sets && m.sets.length > 0 && (
+                        <span className="ml-1 font-sans"><SetScoreDetail sets={m.sets} /></span>
+                      )}
                     </td>
                     <td className="px-4 py-2">{m.away_class_name}</td>
                     <td className="px-4 py-2 text-center"><StatusBadge status={m.status} /></td>

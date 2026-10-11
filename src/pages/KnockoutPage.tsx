@@ -9,6 +9,7 @@ import type { Grade, Sport, EnrichedMatch } from '../lib/types';
 import { SCHOOL_NAME, FOOTER_DEFAULT } from '../config';
 import { Select } from '../components/Filters';
 import { Spinner } from '../components/ui';
+import { SetScoreDetail } from '../components/SetScoreDetail';
 
 export default function KnockoutPage() {
   const [params] = useSearchParams();
@@ -177,6 +178,9 @@ function MatchCard({ m, entry = false, solo = false }: { m: EnrichedMatch; entry
     <div className={cls}>
       <TeamRow name={m.home_class_name} source={m.home_source} score={m.home_score} showScore={m.status === 'completed'} strong={homeWin} dimmed={awayWin} />
       <TeamRow name={m.away_class_name} source={m.away_source} score={m.away_score} showScore={m.status === 'completed'} strong={awayWin} dimmed={homeWin} />
+      {m.status === 'completed' && m.sets && m.sets.length > 0 && (
+        <div className="text-right mt-0.5"><SetScoreDetail sets={m.sets} /></div>
+      )}
     </div>
   );
 }

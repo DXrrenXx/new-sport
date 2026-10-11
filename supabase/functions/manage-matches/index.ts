@@ -1,8 +1,9 @@
 // manage-matches: 创建/更新/重置/删除比赛。支持小组赛(group)与淘汰赛(knockout/third)。
 // 淘汰赛：允许 TBD（班级为空 + source 指向来源）；winner:/loser: 来源需真实存在；
 // class_id 仅在未开打时可改（出线填充走 update）；改判保护（下游已打则拒绝）；
-// reset 清比分回 pending（下游已打则拒绝，并清除下游已联动填入的班级）；
+// reset 清比分回 pending（含清空每局 sets；下游已打则拒绝，并清除下游已联动填入的班级）；
 // delete 检查是否被下游 source 引用。
+// 详细计分项目（scoring_rules.detailed）禁止直接改比分（走 update-match-result 弹窗）。
 // 排行榜计算统一调用数据库函数 recalc_rankings（只统计小组赛）。
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -117,22 +118,27 @@ Deno.serve(async (req) => {
       if (existing.stage !== 'group' && (matchData.home_score !== undefined || matchData.away_score !== undefined)) {
         throw new Error('淘汰赛比分请在淘汰赛管理页通过「录入」保存');
       }
-      // 小组赛改分 -> 自动重算 result
-      if (existing.stage === 'group' && matchData.home_score !== undefined && matchData.away_score !== undefined) {
-        patch.home_score = matchData.home_score;
-        patch.away_score = matchData.away_score;
-        if (patch.home_score == null || patch.away_score == null) {
-          patch.result = 'pending'; patch.status = 'pending';
-        } else {
-          const { data: sport } = await admin.from('sports').select('name, scoring_rules').eq('id', existing.sport_id).maybeSingle();
-          const nh = Number(patch.home_score), na = Number(patch.away_score);
-          if (nh === na) {
-            if (!sport?.scoring_rules?.allow_draw) throw new Error(`${sport?.name ?? '该项目'} 不允许平局，比分不能相等`);
-            patch.result = 'draw';
+      // 小组赛改分：详细计分项目禁止直改（避免与每局数据脱节）；普通项目自动重算 result
+      if (existing.stage === 'group' && (matchData.home_score !== undefined || matchData.away_score !== undefined)) {
+        const { data: sport } = await admin.from('sports').select('name, scoring_rules').eq('id', existing.sport_id).maybeSingle();
+        if (sport?.scoring_rules?.detailed) {
+          throw new Error('该项目已开启详细计分，请在「结果录入」弹窗中填写比分或每局比分');
+        }
+        if (matchData.home_score !== undefined && matchData.away_score !== undefined) {
+          patch.home_score = matchData.home_score;
+          patch.away_score = matchData.away_score;
+          if (patch.home_score == null || patch.away_score == null) {
+            patch.result = 'pending'; patch.status = 'pending';
           } else {
-            patch.result = nh > na ? 'home_win' : 'away_win';
+            const nh = Number(patch.home_score), na = Number(patch.away_score);
+            if (nh === na) {
+              if (!sport?.scoring_rules?.allow_draw) throw new Error(`${sport?.name ?? '该项目'} 不允许平局，比分不能相等`);
+              patch.result = 'draw';
+            } else {
+              patch.result = nh > na ? 'home_win' : 'away_win';
+            }
+            patch.status = 'completed';
           }
-          patch.status = 'completed';
         }
       }
       // 来源引用校验（与 create 一致）
@@ -172,7 +178,7 @@ Deno.serve(async (req) => {
         if (anyPlayed(downs)) throw new Error('下一轮比赛已开打，不能重置本场比赛。请先重置下一轮比赛');
       }
       await admin.from('matches').update({
-        home_score: null, away_score: null, result: 'pending', status: 'pending', updated_at: new Date().toISOString(),
+        home_score: null, away_score: null, sets: null, result: 'pending', status: 'pending', updated_at: new Date().toISOString(),
       }).eq('id', matchId);
       // 下游未开打（前置条件已保证），清除其由本场联动填入的班级
       await clearDownstream(admin, matchId, existing.grade_id);

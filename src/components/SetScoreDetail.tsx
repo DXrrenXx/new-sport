@@ -78,9 +78,10 @@ export function SetScoreDetail({ sets }: { sets: SetScore[] | null | undefined }
         onPointerEnter={(e) => { if (e.pointerType === 'mouse') show(); }}
         onPointerLeave={(e) => { if (e.pointerType === 'mouse') scheduleHide(); }}
         onClick={() => (open ? setOpen(false) : show())}
-        className="text-xs text-slate-400 underline decoration-dotted hover:text-brand whitespace-nowrap"
+        aria-label="查看每局比分"
+        className="text-sm leading-none text-slate-400 hover:text-brand px-0.5 align-middle"
       >
-        详情
+        ⓘ
       </button>
       {popover && createPortal(popover, document.body)}
     </span>
